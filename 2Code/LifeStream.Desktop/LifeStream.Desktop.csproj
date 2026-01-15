@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net7.0-windows7.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>LifeStream.Desktop</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Version>0.1.1</Version>
+    <AssemblyVersion>0.1.1.0</AssemblyVersion>
+    <FileVersion>0.1.1.0</FileVersion>
+    <Product>LifeStream</Product>
+    <AssemblyTitle>LifeStream - Personal Life Dashboard</AssemblyTitle>
+    <Company>Paul Fuller</Company>
+    <Copyright>Copyright (c) 2025 Paul Fuller</Copyright>
+  </PropertyGroup>
+
+  <!-- MetaGen Source Generator -->
+  <PropertyGroup>
+    <MetaGenPath>$(MSBuildProjectDirectory)\..\..\..\MetaGen</MetaGenPath>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LifeStream.Core\LifeStream.Core.csproj" />
+    <ProjectReference Include="..\..\..\QiD3\2Code\Parallon.WinForms\Parallon.WinForms.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference the Contracts assembly for the [MetaGen] attribute -->
+    <Reference Include="MetaGen.Contracts">
+      <HintPath>$(MetaGenPath)\MetaGen.Contracts\bin\Release\netstandard2.0\MetaGen.Contracts.dll</HintPath>
+    </Reference>
+
+    <!-- Reference the Source Generator as an analyzer -->
+    <Analyzer Include="$(MetaGenPath)\MetaGen.SourceGenerator\bin\Release\netstandard2.0\MetaGen.SourceGenerator.dll" />
+    <Analyzer Include="$(MetaGenPath)\MetaGen.SourceGenerator\bin\Release\netstandard2.0\Scriban.dll" />
+
+    <!-- Metadata JSON files for MetaGen source generator -->
+    <AdditionalFiles Include="MetaGen\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DevExpress.Data" Version="22.2.15.0" />
+    <PackageReference Include="DevExpress.Utils" Version="22.2.15.0" />
+    <PackageReference Include="DevExpress.Utils.UI" Version="22.2.15.0" />
+    <PackageReference Include="DevExpress.Win" Version="22.2.15.0" />
+    <PackageReference Include="DevExpress.Win.BonusSkins" Version="22.2.15.0" />
+    <PackageReference Include="DevExpress.Win.Charts" Version="22.2.15.0" />
+    <PackageReference Include="DevExpress.Win.Design" Version="22.2.15.0" />
+    <PackageReference Include="DevExpress.Xpo" Version="22.2.15.0" />
+    <PackageReference Include="Serilog" Version="3.1.1" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="7.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
+    <PackageReference Include="Serilog.Sinks.Debug" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.6" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,35 @@
+# Build outputs
+bin/
+obj/
+out/
+
+# IDE and tools
+.vs/
+.vscode/
+*.user
+*.suo
+*.csproj.user
+
+# NuGet
+packages/
+*.nupkg
+
+# Test results
+TestResults/
+*.trx
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs (keep structure, ignore contents)
+*.log
+
+# User-specific files
+*.DotSettings.user
+
+# Runtime data (should not be in repo)
+# These are created in %APPDATA%\LifeStream at runtime
+
+# Rider
+.idea/
