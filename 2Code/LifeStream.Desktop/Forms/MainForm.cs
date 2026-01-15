@@ -10,6 +10,7 @@ using LifeStream.Desktop.Services;
 using LifeStream.Desktop.Services.Apod;
 using LifeStream.Desktop.Services.BomForecast;
 using LifeStream.Desktop.Services.BomRadar;
+using LifeStream.Desktop.Services.SystemMonitor;
 using Serilog;
 
 namespace LifeStream.Desktop.Forms;
@@ -29,6 +30,7 @@ public partial class MainForm : RibbonForm
     private ApodPanel _apodPanel = null!;
     private BomRadarPanel _radarPanel = null!;
     private BomForecastPanel _forecastPanel = null!;
+    private SystemMonitorPanel _systemMonitorPanel = null!;
     private ServicesPanel _servicesPanel = null!;
     private string _currentLayoutName = LayoutManager.DefaultLayoutName;
 
@@ -121,12 +123,21 @@ public partial class MainForm : RibbonForm
         _radarPanel = new BomRadarPanel { Dock = DockStyle.Fill };
         radarDockPanel.ControlContainer.Controls.Add(_radarPanel);
 
-        // Create right panel for APOD (fill remaining space)
-        var apodDockPanel = _dockManager.AddPanel(DockingStyle.Fill);
+        // Create right panel for APOD
+        var apodDockPanel = _dockManager.AddPanel(DockingStyle.Right);
         apodDockPanel.Text = "Astronomy Picture of the Day";
+        apodDockPanel.Width = 450;
 
         _apodPanel = new ApodPanel { Dock = DockStyle.Fill };
         apodDockPanel.ControlContainer.Controls.Add(_apodPanel);
+
+        // Create System Monitor panel (Fill - must be LAST for proper docking)
+        // Fill panel takes remaining space after all edge-docked panels
+        var systemMonitorDockPanel = _dockManager.AddPanel(DockingStyle.Fill);
+        systemMonitorDockPanel.Text = "System Monitor";
+
+        _systemMonitorPanel = new SystemMonitorPanel { Dock = DockStyle.Fill };
+        systemMonitorDockPanel.ControlContainer.Controls.Add(_systemMonitorPanel);
 
         // Initialize layout manager
         _layoutManager = new LayoutManager(_dockManager);
@@ -168,10 +179,15 @@ public partial class MainForm : RibbonForm
         var forecastService = new BomForecastService(ForecastLocations.NSW.Sydney);
         _serviceManager.RegisterService(forecastService);
 
+        // Register System Monitor service (1 second interval, 1 hour buffer)
+        var systemMonitorService = new SystemMonitorService(bufferSize: 3600, collectionIntervalMs: 1000);
+        _serviceManager.RegisterService(systemMonitorService);
+
         // Bind panels to services (before start so events are subscribed)
         _apodPanel.BindToService(apodService);
         _radarPanel.BindToService(radarService);
         _forecastPanel.BindToService(forecastService);
+        _systemMonitorPanel.BindToService(systemMonitorService);
 
         // Start all services
         _serviceManager.StartAll();

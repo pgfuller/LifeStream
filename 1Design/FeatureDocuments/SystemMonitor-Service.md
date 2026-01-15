@@ -2,49 +2,49 @@
 
 ## Overview
 
-The System Monitor service collects high-frequency system performance metrics (CPU, memory, disk, network) and provides historical data for trend visualization. Designed for investigating system issues with historical context.
+The System Monitor service collects high-frequency system performance metrics (CPU, memory, disk, network) with distinction between system-wide and application-specific usage. Provides historical data for trend visualization and issue investigation.
 
-**Status:** Planned (next implementation)
+**Status:** In Development
 
 ## Goals
 
-1. **High-frequency collection:** Sample metrics every 1-5 seconds
-2. **Historical storage:** Retain data for hours/days of analysis
-3. **Chart visualization:** Real-time and historical trend charts
-4. **Low overhead:** Minimize impact on system being monitored
-5. **Always-on capture:** Collect whenever LifeStream is running
+1. **High-frequency collection:** Sample all metrics every 1 second (uniform)
+2. **System vs Application:** Distinguish between total system load and LifeStream's own usage
+3. **Historical storage:** Retain data for hours/days of analysis
+4. **Chart visualization:** Real-time and historical trend charts
+5. **Low overhead:** Minimize impact on system being monitored
+6. **Always-on capture:** Collect whenever LifeStream is running
 
-## Metrics to Collect
+## Metrics
 
-### CPU
-| Metric | Source | Update Rate |
+All metrics collected at **1-second intervals** (uniform sampling for simplicity and correlation).
+
+### CPU Metrics
+| Metric | PerformanceCounter | Description |
+|--------|-------------------|-------------|
+| System CPU % | `Processor` / `% Processor Time` / `_Total` | Total system CPU load |
+| App CPU % | `Process` / `% Processor Time` / `LifeStream.Desktop` | LifeStream's CPU usage |
+
+### Memory Metrics
+| Metric | Source | Description |
 |--------|--------|-------------|
-| Total CPU % | PerformanceCounter | 1 sec |
-| Per-core % (optional) | PerformanceCounter | 1 sec |
-| Process count | Process.GetProcesses | 5 sec |
+| Available MB | `Memory` / `Available MBytes` | Free physical memory |
+| Used % | Computed: `(Total - Available) / Total` | System memory pressure |
+| Pages/sec | `Memory` / `Pages/sec` | Paging activity (high = thrashing) |
+| App Working Set MB | `Process` / `Working Set` / `LifeStream.Desktop` | LifeStream physical RAM |
+| App Private Bytes MB | `Process` / `Private Bytes` / `LifeStream.Desktop` | LifeStream committed memory (leak detection) |
 
-### Memory
-| Metric | Source | Update Rate |
-|--------|--------|-------------|
-| Used MB | PerformanceCounter | 2 sec |
-| Available MB | PerformanceCounter | 2 sec |
-| Used % | Computed | 2 sec |
-| Page faults/sec | PerformanceCounter | 5 sec |
+### Disk Metrics
+| Metric | PerformanceCounter | Description |
+|--------|-------------------|-------------|
+| Read KB/sec | `PhysicalDisk` / `Disk Read Bytes/sec` / `_Total` | Disk read throughput |
+| Write KB/sec | `PhysicalDisk` / `Disk Write Bytes/sec` / `_Total` | Disk write throughput |
 
-### Disk
-| Metric | Source | Update Rate |
-|--------|--------|-------------|
-| Read KB/sec | PerformanceCounter | 2 sec |
-| Write KB/sec | PerformanceCounter | 2 sec |
-| Disk queue length | PerformanceCounter | 2 sec |
-| Free space % (per drive) | DriveInfo | 60 sec |
-
-### Network
-| Metric | Source | Update Rate |
-|--------|--------|-------------|
-| Bytes received/sec | PerformanceCounter | 2 sec |
-| Bytes sent/sec | PerformanceCounter | 2 sec |
-| Packets/sec | PerformanceCounter | 5 sec |
+### Network Metrics
+| Metric | PerformanceCounter | Description |
+|--------|-------------------|-------------|
+| Received KB/sec | `Network Interface` / `Bytes Received/sec` | Aggregate all interfaces |
+| Sent KB/sec | `Network Interface` / `Bytes Sent/sec` | Aggregate all interfaces |
 
 ## Data Model
 
@@ -54,139 +54,187 @@ public class SystemMetrics
     public DateTime Timestamp { get; set; }
 
     // CPU
-    public float CpuPercent { get; set; }
-    public float[]? CpuPerCore { get; set; }  // Optional
-    public int ProcessCount { get; set; }
+    public float SystemCpuPercent { get; set; }    // Total system (0-100)
+    public float AppCpuPercent { get; set; }       // LifeStream only (0-100)
 
-    // Memory
-    public long MemoryUsedMB { get; set; }
-    public long MemoryAvailableMB { get; set; }
-    public float MemoryPercent { get; set; }
+    // System Memory
+    public long MemoryTotalMB { get; set; }        // Total physical (static)
+    public long MemoryAvailableMB { get; set; }    // Free physical
+    public float MemoryUsedPercent { get; set; }   // System-wide pressure
+    public float MemoryPagesPerSec { get; set; }   // Paging activity
+
+    // App Memory
+    public long AppWorkingSetMB { get; set; }      // LifeStream physical RAM
+    public long AppPrivateBytesMB { get; set; }    // LifeStream committed
 
     // Disk
     public float DiskReadKBps { get; set; }
     public float DiskWriteKBps { get; set; }
-    public float DiskQueueLength { get; set; }
 
-    // Network (aggregate all interfaces)
+    // Network
     public float NetworkReceivedKBps { get; set; }
     public float NetworkSentKBps { get; set; }
-}
-
-public class DriveMetrics
-{
-    public string DriveLetter { get; set; }
-    public long TotalGB { get; set; }
-    public long FreeGB { get; set; }
-    public float FreePercent { get; set; }
 }
 ```
 
 ## Storage Strategy
 
 ### In-Memory Ring Buffer
-- Last N samples (e.g., 3600 = 1 hour at 1/sec)
-- Used for real-time chart display
-- No disk I/O overhead
+- **Size:** 3,600 samples (1 hour at 1/sec)
+- **Purpose:** Real-time chart display
+- **Structure:** Circular buffer, overwrites oldest when full
+- **Memory:** ~150KB for 3,600 samples
 
-### Periodic Persistence (Optional)
+### Periodic Persistence (Phase 2)
 - Write aggregated data (min/max/avg) every 5 minutes
-- SQLite or JSON file per day
-- Enables historical analysis across sessions
+- SQLite storage for historical analysis
+- Automatic retention/cleanup
 
 ### Retention Policy
 | Resolution | Retention | Purpose |
 |------------|-----------|---------|
-| 1 sec | 1 hour | Real-time display |
+| 1 sec | 1 hour | Real-time display (in-memory) |
 | 1 min avg | 24 hours | Recent history |
 | 5 min avg | 7 days | Trend analysis |
-| 1 hour avg | 30 days | Long-term patterns |
+
+## Service Architecture
+
+### MetricsCollector
+Wraps PerformanceCounter initialization and reading:
+
+```csharp
+public class MetricsCollector : IDisposable
+{
+    // Initializes all counters, handles first-read priming
+    public MetricsCollector();
+
+    // Collects all metrics in one call
+    public SystemMetrics Collect();
+}
+```
+
+### SystemMonitorService
+Extends `InformationServiceBase<SystemMetrics>`:
+
+```csharp
+public class SystemMonitorService : InformationServiceBase<SystemMetrics>
+{
+    // Ring buffer for history
+    private readonly RingBuffer<SystemMetrics> _history;
+
+    // High-frequency timer (1 sec)
+    private readonly Timer _collectionTimer;
+
+    // Access to historical data
+    public IReadOnlyList<SystemMetrics> GetHistory(TimeSpan duration);
+}
+```
 
 ## UI Panel Design
 
-### Primary Display: Multi-Chart View
+### Initial Layout
+System Monitor panel fills the main display area (using `DockingStyle.Fill`).
+
+**Note:** Panel creation order is critical for Fill to work correctly. The Fill panel must be created last after all edge-docked panels.
+
+### Panel Layout
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ System Monitor                            1h ▼    Refresh   │
-├─────────────────────────────────────────────────────────────┤
-│ CPU: 23%  │  Memory: 67%  │  Disk R/W  │  Network I/O      │
-├─────────────┬─────────────┬─────────────┬───────────────────┤
-│   [Chart]   │   [Chart]   │   [Chart]   │     [Chart]       │
-│    CPU %    │    Mem %    │   KB/sec    │     KB/sec        │
-│    0-100    │    0-100    │   0-auto    │     0-auto        │
-└─────────────┴─────────────┴─────────────┴───────────────────┘
-│ Updated: 12:30:45 | Samples: 3,600 | C: 2.1GB | D: 156GB    │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│ System Monitor                                    1h ▼       Refresh    │
+├─────────────────────────────────────────────────────────────────────────┤
+│ CPU: Sys 45% / App 2%  │  Mem: 67% (App 180MB)  │  Disk  │  Network    │
+├─────────────────────────┬─────────────────────────┬────────┬────────────┤
+│                         │                         │        │            │
+│      [CPU Chart]        │    [Memory Chart]       │ [Disk] │ [Network]  │
+│                         │                         │        │            │
+│  ── System (blue)       │  ── Used % (blue)       │  Read  │  Received  │
+│  ── App (green)         │  ── App MB (green)      │  Write │  Sent      │
+│                         │                         │        │            │
+└─────────────────────────┴─────────────────────────┴────────┴────────────┘
+│ Samples: 3,600 | Collecting every 1s | Pages/sec: 12                    │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
+
+### Chart Specifications
+
+| Chart | Series | Y-Axis | Color |
+|-------|--------|--------|-------|
+| CPU | System CPU % | 0-100 fixed | Blue |
+| CPU | App CPU % | 0-100 fixed | Green |
+| Memory | Used % | 0-100 fixed | Blue |
+| Memory | App Working Set | Auto-scale MB | Green |
+| Disk | Read KB/s | Auto-scale | Blue |
+| Disk | Write KB/s | Auto-scale | Orange |
+| Network | Received KB/s | Auto-scale | Blue |
+| Network | Sent KB/s | Auto-scale | Orange |
+
+### Time Range Selector
+- 1 minute (60 samples)
+- 5 minutes (300 samples)
+- 15 minutes (900 samples)
+- 1 hour (3,600 samples)
 
 ### Chart Features
-- **Time range selector:** 1 min, 5 min, 15 min, 1 hour, 24 hours
-- **Auto-scaling Y axis** for disk/network
-- **Fixed 0-100 scale** for percentages
-- **Smooth line rendering** with DevExpress SplineAreaSeries
-- **Grid lines** for readability
-- **Hover tooltip** showing exact values
+- DevExpress `ChartControl` with `SplineAreaSeries` for smooth visualization
+- Semi-transparent fill under lines
+- Grid lines for readability
+- Legend showing series names
+- Crosshair for hover values
 
-### Status Bar
-- Current values (CPU %, Memory %)
-- Sample count in buffer
-- Drive free space summary
+## Implementation Phases
 
-## Implementation Plan
+### Phase 1: Core Implementation
+1. `SystemMetrics` data model
+2. `MetricsCollector` with PerformanceCounter wrappers
+3. `RingBuffer<T>` for in-memory history
+4. `SystemMonitorService` with 1-second collection
+5. `SystemMonitorPanel` with 4 charts
+6. Integration into MainForm (Fill panel)
 
-### Phase 1: Core Service
-1. Create `SystemMonitorService` extending `InformationServiceBase`
-2. Implement `PerformanceCounter` collection for CPU/Memory
-3. Ring buffer for in-memory storage
-4. High-frequency timer (1 second)
+### Phase 2: Persistence (Future)
+1. SQLite storage schema
+2. Aggregation service (downsample)
+3. Load historical data on startup
+4. Retention/cleanup job
 
-### Phase 2: UI Panel
-1. Create `SystemMonitorPanel` with 4 charts
-2. DevExpress `ChartControl` with `SplineAreaSeries`
-3. Time range selector (ComboBox)
-4. Current value display
-5. Bind to service data events
+### Phase 3: Enhancements (Future)
+1. Per-core CPU expansion
+2. Alerts/thresholds
+3. Export to CSV
+4. Background Windows Service for continuous collection
 
-### Phase 3: Data Persistence
-1. Aggregation service (downsample for storage)
-2. SQLite storage for historical data
-3. Automatic retention/cleanup
-4. Load historical data on startup
-
-### Phase 4: Enhancements (Future)
-1. Per-core CPU view (expandable)
-2. Process list view (top N by CPU/memory)
-3. Alerts/thresholds (notify when CPU > 90%)
-4. Export to CSV
-
-## Technical Considerations
+## Technical Notes
 
 ### PerformanceCounter Initialization
 ```csharp
-// Must be initialized before first read
+// Counters must be "primed" - first read returns 0
 var cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-cpuCounter.NextValue(); // First call returns 0, primes the counter
-Thread.Sleep(100);      // Small delay before real readings
-var cpuPercent = cpuCounter.NextValue();
+cpuCounter.NextValue(); // Prime the counter
+Thread.Sleep(100);      // Brief delay
+var actualValue = cpuCounter.NextValue(); // Now returns real value
 ```
 
 ### Network Interface Aggregation
 ```csharp
-// Aggregate all active network interfaces
+// Sum across all active network interfaces
 var category = new PerformanceCounterCategory("Network Interface");
-var instances = category.GetInstanceNames();
-// Sum values across all instances
+foreach (var instance in category.GetInstanceNames())
+{
+    // Aggregate bytes received/sent from each interface
+}
+```
+
+### Process Name for App Metrics
+```csharp
+// Get current process name (without .exe)
+var processName = Process.GetCurrentProcess().ProcessName;
+// Use this for Process category instance name
 ```
 
 ### Thread Safety
-- Collection on background thread
-- UI updates via InvokeRequired pattern
-- Ring buffer with lock or ConcurrentQueue
-
-### Resource Usage
-- PerformanceCounters are lightweight
-- Ring buffer: ~50KB for 3600 samples
-- Chart rendering is the main CPU cost (limit update frequency)
+- Collection runs on background timer thread
+- Ring buffer uses lock for thread-safe access
+- UI updates via `BeginInvoke` for thread marshaling
 
 ## File Structure
 
@@ -195,8 +243,7 @@ Services/SystemMonitor/
 ├── SystemMonitorService.cs    (main service)
 ├── SystemMetrics.cs           (data model)
 ├── MetricsCollector.cs        (PerformanceCounter wrapper)
-├── MetricsRingBuffer.cs       (in-memory storage)
-└── MetricsAggregator.cs       (downsampling for storage)
+└── RingBuffer.cs              (circular buffer)
 
 Controls/
 └── SystemMonitorPanel.cs      (UI with charts)
@@ -206,35 +253,19 @@ Controls/
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| sampleInterval | 1 sec | Collection frequency |
-| bufferSize | 3600 | Samples in ring buffer |
+| collectionInterval | 1 sec | Sampling frequency |
+| bufferSize | 3600 | Ring buffer capacity (1 hour) |
 | chartUpdateInterval | 1 sec | UI refresh rate |
-| persistInterval | 5 min | Write to disk frequency |
-| retentionDays | 7 | Historical data retention |
 
-## Future: Background Service
+## Future: Background Service (Low Priority)
 
-**Low Priority:** A Windows Service that runs independently to collect metrics even when LifeStream UI is not running.
-
-### Approach
-1. Separate Windows Service project
-2. Shared data store (SQLite in AppData)
-3. LifeStream reads from shared store
-4. Service writes continuously
+A Windows Service that runs independently to collect metrics even when LifeStream UI is not running.
 
 ### Benefits
 - Complete historical coverage
 - Investigate issues that occurred before LifeStream was opened
 
-### Considerations
-- Additional deployment complexity
-- Service installation/permissions
-- Inter-process communication
-
----
-
-## References
-
-- [PerformanceCounter Class](https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.performancecounter)
-- [DevExpress ChartControl](https://docs.devexpress.com/WindowsForms/DevExpress.XtraCharts.ChartControl)
-- [Ring Buffer Pattern](https://en.wikipedia.org/wiki/Circular_buffer)
+### Approach
+- Separate Windows Service project
+- Shared SQLite database in AppData
+- LifeStream reads from shared store on startup

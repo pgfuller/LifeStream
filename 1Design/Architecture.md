@@ -4,7 +4,7 @@
 
 LifeStream is a personal life dashboard application that aggregates information from multiple sources (weather, space/science, financial, news) and presents it in a customizable high-tech display with historical data capture and trend visualization.
 
-**Current Version:** 0.1.1
+**Current Version:** 0.2.0
 
 ## Solution Structure
 
@@ -28,7 +28,7 @@ LifeStream.sln
 
 ## Implementation Status
 
-### Completed (v0.1.1)
+### Completed (v0.2.0)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
@@ -41,15 +41,16 @@ LifeStream.sln
 | BOM Radar Service | Done | Multi-range (64/128/256/512km), playback, layers |
 | BOM Forecast Service | Done | 7-day forecast, FTP data extraction |
 | Services Panel | Done | Real-time service status display |
+| System Monitor | Done | 1-sec sampling, CPU/Memory/Disk/Network, 4 charts, 1-hour buffer |
 
-### Planned (MVP)
+### Planned (Future)
 
 | Component | Priority | Notes |
 |-----------|----------|-------|
-| System Monitor | Next | CPU, memory, disk - high frequency with charts |
 | Financial Service | Medium | Stock quotes, price charts |
 | News/RSS Service | Medium | Feed aggregation |
 | Tasks Panel | Medium | Local task management |
+| YouTube Service | Low | Channel feed monitoring |
 
 ## Core Architecture
 
@@ -194,12 +195,20 @@ LifeStream/
 | LifeStream.UI | Panel updates, layout changes |
 | LifeStream.Data | Cache operations, file I/O |
 
-## Next Implementation: System Monitor
+## System Monitor Implementation
 
-The next service to implement is System Monitor for high-frequency system metrics:
-- CPU usage (total, per-core optional)
-- Memory usage (used, available, percentage)
-- Disk I/O (read/write rates)
-- Network I/O (bytes in/out)
+System Monitor is now complete with the following features:
+- **1-second sampling** using Windows PerformanceCounters
+- **Metrics collected**: System CPU %, App CPU %, Memory Used %, App Working Set, Disk R/W KB/s, Network In/Out KB/s
+- **Ring buffer** stores 3600 samples (1 hour of history)
+- **4 vertically stacked charts** with DevExpress ChartControl
+- **Time range selector**: 1 min, 5 min, 15 min, 1 hour views
 
-See `1Design/FeatureDocuments/SystemMonitor.md` for detailed specification.
+See `1Design/FeatureDocuments/SystemMonitor-Service.md` for detailed specification.
+
+## Future Services
+
+Next services to consider:
+- **Financial Service** - Stock quotes and price charts via Alpha Vantage or Yahoo Finance
+- **News/RSS Service** - RSS feed aggregation with configurable sources
+- **Tasks Panel** - Local task management with priorities

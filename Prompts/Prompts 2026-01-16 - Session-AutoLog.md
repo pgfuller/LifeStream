@@ -22,3 +22,60 @@
 
 ---
 
+## Prompt at 00:47:58
+
+> I wonder if it would be better to capture all stats at 1-sec frequenecy? It might save a little overhead but complicates thins to have different collection and therefore aggregation. Consider this and explain your preference.
+
+---
+
+## Prompt at 00:51:10
+
+> Can we get system vs application CPU? Are thee other important memory statistics apart from MemoryPercent?
+
+---
+
+## Prompt at 00:55:31
+
+> Yes. That is a good set to start with. Please update the feature document and proceed with implementation. For the viewer, I want to start with the panel filling the unused display area. Later we will move it to a side panel in the default layout. Note that it takes some care to correctly position a panel with the Fill option. The order of panel creation is important. We have had issues with getting it to work properly in QiD3 but I think if you know to take care it should be possible to get it right.
+
+---
+
+## Prompt at 01:06:59
+
+> 2026-01-16 01:03:45.521 +11:00 [FTL] [] LifeStream terminated unexpectedly
+> System.NotSupportedException: This property can't be customized at runtime.
+>    at DevExpress.XtraCharts.Native.Chart.set_Diagram(Diagram value)
+>    at DevExpress.XtraCharts.ChartControl.set_Diagram(Diagram value)
+>    at LifeStream.Desktop.Controls.SystemMonitorPanel.CreateChart(String title, Boolean fixedYAxis, Double maxY) in C:\Users\pgful\source\repos\LifeStream\2Code\LifeStream.Desktop\Controls\SystemMonitorPanel.cs:line 188
+>    at LifeStream.Desktop.Controls.SystemMonitorPanel.InitializeComponents() in C:\Users\pgful\source\repos\LifeStream\2Code\LifeStream.Desktop\Controls\SystemMonitorPanel.cs:line 139
+>    at LifeStream.Desktop.Controls.SystemMonitorPanel..ctor() in C:\Users\pgful\source\repos\LifeStream\2Code\LifeStream.Desktop\Controls\SystemMonitorPanel.cs:line 51
+>    at LifeStream.Desktop.Forms.MainForm.InitializeComponent() in C:\Users\pgful\source\repos\LifeStream\2Code\LifeStream.Desktop\Forms\MainForm.cs:line 139
+>    at LifeStream.Desktop.Forms.MainForm..ctor() in C:\Users\pgful\source\repos\LifeStream\2Code\LifeStream.Desktop\Forms\MainForm.cs:line 39
+>    at LifeStream.Desktop.Program.Main() in C:\Users\pgful\source\repos\LifeStream\2Code\LifeStream.Desktop\Program.cs:line 39
+
+---
+
+## Prompt at 01:12:43
+
+> I see the new charts. The statistics in the headings are updating with what looks like valid data. However the charts are not showing any data series. The scales on each chart are adjusting so there is data being added. Just now chart lines to show the series.
+
+---
+
+## Prompt at 01:15:52
+
+> Still no data series being displayed in any chart.
+
+---
+
+## Prompt at 01:19:16
+
+> Good. The lines in all 4 charts are now being displayed. Given that we want a long time series more that vertical heigth, Let's try it with the 4 charts in a vertical stack.
+
+---
+
+## Prompt at 01:32:17
+
+> I like the vertically stacked charts. Later we can add some other options. For now I am extremely pleased with LifeStream. In a single session we have gone from nothing to what looks like a very sophisticated and attractive application. We can keep working on additional services and improvements to the UI in a future session. For now, please increment the version number. Make any documentation updates that you think are necessary. Then commit and push the project. I plan to leave it running overnight to check on the cumulative collection of the radat and performance data. Very well done in this session Claude. Very impressive.
+
+---
+
