@@ -11,6 +11,7 @@ using LifeStream.Desktop.Services.Apod;
 using LifeStream.Desktop.Services.BomForecast;
 using LifeStream.Desktop.Services.BomRadar;
 using LifeStream.Desktop.Services.SystemMonitor;
+using LifeStream.Desktop.Services.Financial;
 using Serilog;
 
 namespace LifeStream.Desktop.Forms;
@@ -31,6 +32,7 @@ public partial class MainForm : RibbonForm
     private BomRadarPanel _radarPanel = null!;
     private BomForecastPanel _forecastPanel = null!;
     private SystemMonitorPanel _systemMonitorPanel = null!;
+    private FinancialPanel _financialPanel = null!;
     private ServicesPanel _servicesPanel = null!;
     private string _currentLayoutName = LayoutManager.DefaultLayoutName;
 
@@ -131,10 +133,18 @@ public partial class MainForm : RibbonForm
         _apodPanel = new ApodPanel { Dock = DockStyle.Fill };
         apodDockPanel.ControlContainer.Controls.Add(_apodPanel);
 
-        // Create System Monitor panel (Fill - must be LAST for proper docking)
+        // Create Financial panel (Fill - must be LAST for proper docking)
         // Fill panel takes remaining space after all edge-docked panels
+        var financialDockPanel = _dockManager.AddPanel(DockingStyle.Fill);
+        financialDockPanel.Text = "Financial Markets";
+
+        _financialPanel = new FinancialPanel { Dock = DockStyle.Fill };
+        financialDockPanel.ControlContainer.Controls.Add(_financialPanel);
+
+        // Create System Monitor panel as a tab with Financial panel
         var systemMonitorDockPanel = _dockManager.AddPanel(DockingStyle.Fill);
         systemMonitorDockPanel.Text = "System Monitor";
+        systemMonitorDockPanel.DockAsTab(financialDockPanel);
 
         _systemMonitorPanel = new SystemMonitorPanel { Dock = DockStyle.Fill };
         systemMonitorDockPanel.ControlContainer.Controls.Add(_systemMonitorPanel);
@@ -183,11 +193,16 @@ public partial class MainForm : RibbonForm
         var systemMonitorService = new SystemMonitorService(bufferSize: 3600, collectionIntervalMs: 1000);
         _serviceManager.RegisterService(systemMonitorService);
 
+        // Register Financial service (using mock data for development)
+        var financialService = FinancialService.CreateWithMockData();
+        _serviceManager.RegisterService(financialService);
+
         // Bind panels to services (before start so events are subscribed)
         _apodPanel.BindToService(apodService);
         _radarPanel.BindToService(radarService);
         _forecastPanel.BindToService(forecastService);
         _systemMonitorPanel.BindToService(systemMonitorService);
+        _financialPanel.BindToService(financialService);
 
         // Start all services
         _serviceManager.StartAll();
