@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using LifeStream.Core.Infrastructure;
+using LifeStream.Desktop.Infrastructure;
 using Serilog;
 
 namespace LifeStream.Desktop.Services.Financial;
@@ -19,6 +20,7 @@ public class FinancialService : InformationServiceBase
     private readonly IMarketDataProvider _marketProvider;
     private readonly IMetalsDataProvider _metalsProvider;
     private readonly HoldingsManager _holdingsManager;
+    private readonly AlphaVantageClient? _alphaVantageClient;
 
     private FinancialData? _currentData;
     private readonly List<PriceDataPoint> _chartHistory = new();
@@ -70,11 +72,13 @@ public class FinancialService : InformationServiceBase
 
     public FinancialService(
         IMarketDataProvider marketProvider,
-        IMetalsDataProvider metalsProvider)
+        IMetalsDataProvider metalsProvider,
+        AlphaVantageClient? alphaVantageClient = null)
         : base("financial", "Financial Markets", "Financial")
     {
         _marketProvider = marketProvider ?? throw new ArgumentNullException(nameof(marketProvider));
         _metalsProvider = metalsProvider ?? throw new ArgumentNullException(nameof(metalsProvider));
+        _alphaVantageClient = alphaVantageClient;
         _holdingsManager = new HoldingsManager();
     }
 
@@ -86,6 +90,48 @@ public class FinancialService : InformationServiceBase
         return new FinancialService(
             new MockMarketDataProvider(),
             new MockMetalsDataProvider());
+    }
+
+    /// <summary>
+    /// Creates a FinancialService with Alpha Vantage real data providers.
+    /// </summary>
+    /// <param name="apiKey">Alpha Vantage API key.</param>
+    /// <param name="cacheMinutes">Cache duration in minutes (default 15).</param>
+    /// <param name="dailyLimit">Daily API call limit (default 25 for free tier).</param>
+    public static FinancialService CreateWithAlphaVantage(string apiKey, int cacheMinutes = 15, int dailyLimit = 25)
+    {
+        var client = new AlphaVantageClient(apiKey, cacheMinutes, dailyLimit);
+        return new FinancialService(
+            new AlphaVantageMarketDataProvider(client),
+            new AlphaVantageMetalsDataProvider(client),
+            client);
+    }
+
+    /// <summary>
+    /// Creates a FinancialService based on the current application settings.
+    /// Returns mock data provider if UseRealData is false or API key is not configured.
+    /// </summary>
+    public static FinancialService CreateFromSettings()
+    {
+        var settings = SettingsService.Current.Financial ?? new FinancialSettings();
+
+        if (settings.UseRealData && !string.IsNullOrWhiteSpace(settings.AlphaVantageApiKey))
+        {
+            Log.Information("Creating Financial Service with Alpha Vantage provider");
+            return CreateWithAlphaVantage(
+                settings.AlphaVantageApiKey,
+                settings.CacheMinutes,
+                settings.DailyApiLimit);
+        }
+        else
+        {
+            if (settings.UseRealData)
+            {
+                Log.Warning("UseRealData is true but no API key configured. Falling back to mock data.");
+            }
+            Log.Information("Creating Financial Service with mock data provider");
+            return CreateWithMockData();
+        }
     }
 
     protected override void OnInitialize()
@@ -184,6 +230,13 @@ public class FinancialService : InformationServiceBase
 
             // Calculate portfolio summary
             data.Portfolio = _holdingsManager.CalculatePortfolioSummary();
+
+            // Update API call tracking (only for Alpha Vantage)
+            if (_alphaVantageClient != null)
+            {
+                data.ApiCallsToday = _alphaVantageClient.ApiCallsToday;
+                data.ApiCallsRemaining = _alphaVantageClient.ApiCallsRemaining;
+            }
 
             Log.Information("Financial data fetched successfully. ASX200: {Asx200}, AUD/USD: {AudUsd}, Gold: {Gold} AUD/oz, Silver: {Silver} AUD/kg",
                 data.Asx200?.Price, data.AudUsd?.Price, data.Gold?.Price, data.Silver?.Price);

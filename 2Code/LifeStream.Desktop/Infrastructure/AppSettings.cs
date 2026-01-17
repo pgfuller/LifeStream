@@ -32,4 +32,36 @@ public class AppSettings
     /// Name of the default dashboard layout.
     /// </summary>
     public string DefaultLayoutName { get; set; } = "Default";
+
+    /// <summary>
+    /// Financial service settings.
+    /// </summary>
+    public FinancialSettings Financial { get; set; } = new();
+}
+
+/// <summary>
+/// Settings for the Financial service.
+/// </summary>
+public class FinancialSettings
+{
+    /// <summary>
+    /// Whether to use real API data instead of mock data.
+    /// </summary>
+    public bool UseRealData { get; set; } = false;
+
+    /// <summary>
+    /// Alpha Vantage API key. Get a free key at https://www.alphavantage.co/support/#api-key
+    /// </summary>
+    public string? AlphaVantageApiKey { get; set; }
+
+    /// <summary>
+    /// Cache duration for API responses in minutes.
+    /// Helps reduce API calls within the daily quota.
+    /// </summary>
+    public int CacheMinutes { get; set; } = 15;
+
+    /// <summary>
+    /// Daily API call limit (Alpha Vantage free tier is 25/day).
+    /// </summary>
+    public int DailyApiLimit { get; set; } = 25;
 }

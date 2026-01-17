@@ -14,6 +14,7 @@ using LifeStream.Desktop.Services.BomForecast;
 using LifeStream.Desktop.Services.BomRadar;
 using LifeStream.Desktop.Services.SystemMonitor;
 using LifeStream.Desktop.Services.Financial;
+using LifeStream.Desktop.Services.News;
 using Serilog;
 
 namespace LifeStream.Desktop.Forms;
@@ -35,6 +36,7 @@ public partial class MainForm : RibbonForm
     private BomForecastPanel _forecastPanel = null!;
     private SystemMonitorPanel _systemMonitorPanel = null!;
     private FinancialPanel _financialPanel = null!;
+    private NewsPanel _newsPanel = null!;
     private ServicesPanel _servicesPanel = null!;
     private string _currentLayoutName = LayoutManager.DefaultLayoutName;
 
@@ -164,7 +166,15 @@ public partial class MainForm : RibbonForm
         _systemMonitorPanel = new SystemMonitorPanel { Dock = DockStyle.Fill };
         systemMonitorDockPanel.ControlContainer.Controls.Add(_systemMonitorPanel);
 
-        // Make Financial panel the active tab (System Monitor was last added so it became active)
+        // Create News panel as a tab with Financial panel
+        var newsDockPanel = _dockManager.AddPanel(DockingStyle.Fill);
+        newsDockPanel.Text = "News";
+        newsDockPanel.DockAsTab(financialDockPanel);
+
+        _newsPanel = new NewsPanel { Dock = DockStyle.Fill };
+        newsDockPanel.ControlContainer.Controls.Add(_newsPanel);
+
+        // Make Financial panel the active tab
         financialDockPanel.Show();
 
         // Initialize layout manager
@@ -211,9 +221,13 @@ public partial class MainForm : RibbonForm
         var systemMonitorService = new SystemMonitorService(bufferSize: 3600, collectionIntervalMs: 1000);
         _serviceManager.RegisterService(systemMonitorService);
 
-        // Register Financial service (using mock data for development)
-        var financialService = FinancialService.CreateWithMockData();
+        // Register Financial service (uses settings to determine mock or real data)
+        var financialService = FinancialService.CreateFromSettings();
         _serviceManager.RegisterService(financialService);
+
+        // Register News service
+        var newsService = new NewsService();
+        _serviceManager.RegisterService(newsService);
 
         // Bind panels to services (before start so events are subscribed)
         _apodPanel.BindToService(apodService);
@@ -221,6 +235,7 @@ public partial class MainForm : RibbonForm
         _forecastPanel.BindToService(forecastService);
         _systemMonitorPanel.BindToService(systemMonitorService);
         _financialPanel.BindToService(financialService);
+        _newsPanel.BindToService(newsService);
 
         // Start all services
         _serviceManager.StartAll();

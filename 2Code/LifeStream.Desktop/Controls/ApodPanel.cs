@@ -405,18 +405,64 @@ public class ApodPanel : XtraUserControl
             _dateLabel.Text += $" | {apod.Copyright}";
         }
 
-        // Prefer local cached image, fall back to remote URL
-        var imageSource = !string.IsNullOrEmpty(apod.LocalImagePath) && File.Exists(apod.LocalImagePath)
-            ? apod.LocalImagePath
-            : apod.GetDisplayUrl();
+        // Always look for cached image first (by date pattern)
+        var imageSource = FindCachedImage(apod.Date);
 
-        if (imageSource != _currentImageUrl)
+        // Fall back to LocalImagePath if set
+        if (imageSource == null && !string.IsNullOrEmpty(apod.LocalImagePath) && File.Exists(apod.LocalImagePath))
+        {
+            imageSource = apod.LocalImagePath;
+        }
+
+        // Only use remote URL as last resort (and only if valid)
+        if (imageSource == null)
+        {
+            var remoteUrl = apod.GetDisplayUrl();
+            if (!string.IsNullOrEmpty(remoteUrl))
+            {
+                imageSource = remoteUrl;
+                Log.Debug("No cached image found for {Date}, will fetch from URL", apod.Date);
+            }
+        }
+
+        if (imageSource != null && imageSource != _currentImageUrl)
         {
             _currentImageUrl = imageSource;
             LoadImageAsync(imageSource);
         }
+        else if (imageSource == null)
+        {
+            Log.Warning("No image source available for APOD {Date}", apod.Date);
+            _statusLabel.Text = "No image available";
+            _statusLabel.Appearance.ForeColor = Color.Orange;
+        }
 
         UpdateStatus();
+    }
+
+    /// <summary>
+    /// Finds a cached image file for the given APOD date.
+    /// </summary>
+    private string? FindCachedImage(string date)
+    {
+        if (_service == null) return null;
+
+        var cachePath = _service.CachePath;
+        if (!Directory.Exists(cachePath)) return null;
+
+        // Look for any image file matching APOD_{date}.* (excluding .json)
+        var pattern = $"APOD_{date}.*";
+        var imageFiles = Directory.GetFiles(cachePath, pattern)
+            .Where(f => !f.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (imageFiles.Count > 0)
+        {
+            Log.Debug("Found cached image for {Date}: {Path}", date, imageFiles[0]);
+            return imageFiles[0];
+        }
+
+        return null;
     }
 
     private async void LoadImageAsync(string imageSource)
