@@ -4,7 +4,7 @@
 
 LifeStream is a personal life dashboard application that aggregates information from multiple sources (weather, space/science, financial, news) and presents it in a customizable high-tech display with historical data capture and trend visualization.
 
-**Current Version:** 0.2.0
+**Current Version:** 0.3.1
 
 ## Solution Structure
 
@@ -28,26 +28,27 @@ LifeStream.sln
 
 ## Implementation Status
 
-### Completed (v0.2.0)
+### Completed (v0.3.1)
 
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Solution Structure | Done | Following Parallon patterns |
-| Logging (Serilog) | Done | Rolling file logs, categorized |
+| Logging (Serilog) | Done | Rolling file logs, categorized, throttled for high-freq services |
 | Main Form Shell | Done | DevExpress RibbonForm + DockManager |
 | Layout Management | Done | Save/load layouts, Default + Minimal |
 | Service Manager | Done | Register, start, stop, refresh services |
 | APOD Service | Done | NASA API, catchup, history navigation, gallery |
-| BOM Radar Service | Done | Multi-range (64/128/256/512km), playback, layers |
+| BOM Radar Service | Done | Multi-range (64/128/256/512km + Australia), reliable frame capture |
 | BOM Forecast Service | Done | 7-day forecast, FTP data extraction |
 | Services Panel | Done | Real-time service status display |
 | System Monitor | Done | 1-sec sampling, CPU/Memory/Disk/Network, 4 charts, 1-hour buffer |
+| Financial Service | Done | ASX indices, gold/silver, portfolio holdings, mock data providers |
+| Debug/Release Paths | Done | Separate data folders for development vs production |
 
 ### Planned (Future)
 
 | Component | Priority | Notes |
 |-----------|----------|-------|
-| Financial Service | Medium | Stock quotes, price charts |
 | News/RSS Service | Medium | Feed aggregation |
 | Tasks Panel | Medium | Local task management |
 | YouTube Service | Low | Channel feed monitoring |
@@ -144,19 +145,27 @@ LifeStream/
 ```
 
 ### Runtime Data Location
+
+Data is stored in separate folders for Debug and Release builds, allowing development
+without affecting production data collection:
+
 ```
-%APPDATA%\LifeStream/
+%APPDATA%\LifeStream/              (Release build)
+%APPDATA%\LifeStream-Debug/        (Debug build)
 ├── Data/
 │   ├── APOD/                           (cached APOD images + JSON)
 │   ├── BOMRadar_{location}/
 │   │   ├── {range}km/                  (radar frames + layers)
 │   │   └── ...
-│   └── BOMForecast_{location}/         (forecast JSON cache)
+│   ├── BOMForecast_{location}/         (forecast JSON cache)
+│   └── lifestream.db                   (SQLite database)
 ├── Logs/
 │   └── LifeStream-YYYYMMDD.log         (rolling daily logs)
-└── Layouts/
-    ├── Default.xml
-    └── Minimal.xml
+├── Layouts/
+│   ├── Default.xml
+│   └── Minimal.xml
+└── Config/
+    └── settings.json
 ```
 
 ## Technology Stack

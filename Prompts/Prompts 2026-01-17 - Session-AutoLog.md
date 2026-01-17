@@ -40,3 +40,9 @@
 
 ---
 
+## Prompt at 11:19:01
+
+> Bump version number to 0.3.1. Another thing I have been thinking about is how to test vs keeping the data that is being accumulated. One idea I had was to have different folders under AppData for the Debug vs Release builds. This would allow the Release build to stay running while we may make changes, delete data etc. on the Debug build and the data that it retains.
+
+---
+

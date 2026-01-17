@@ -5,15 +5,23 @@ namespace LifeStream.Core.Infrastructure;
 
 /// <summary>
 /// Provides standardized paths for application data, logs, and configuration.
-/// Runtime data is stored in %APPDATA%\LifeStream.
+/// Runtime data is stored in %APPDATA%\LifeStream (Release) or %APPDATA%\LifeStream-Debug (Debug).
+/// This separation allows running a Release build for data collection while developing with Debug.
 /// </summary>
 public static class AppPaths
 {
+#if DEBUG
+    private const string AppName = "LifeStream-Debug";
+    public const bool IsDebugBuild = true;
+#else
     private const string AppName = "LifeStream";
+    public const bool IsDebugBuild = false;
+#endif
 
     /// <summary>
     /// Root folder for all LifeStream application data.
-    /// %APPDATA%\LifeStream (e.g., C:\Users\{user}\AppData\Roaming\LifeStream)
+    /// Debug: %APPDATA%\LifeStream-Debug
+    /// Release: %APPDATA%\LifeStream
     /// </summary>
     public static string AppDataRoot =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppName);

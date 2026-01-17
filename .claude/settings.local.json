@@ -11,7 +11,16 @@
       "Bash(dotnet build:*)",
       "WebFetch(domain:www.bom.gov.au)",
       "WebSearch",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit - LifeStream v0.1.1\n\nPersonal life dashboard application with the following services:\n\nServices implemented:\n- APOD \\(NASA Astronomy Picture of the Day\\) with history navigation and gallery\n- BOM Radar with multi-range support \\(64/128/256/512km\\) and playback\n- BOM Forecast with 7-day weather data\n\nCore features:\n- DevExpress WinForms UI with RibbonForm and DockManager\n- Service manager with adaptive polling and refresh strategies\n- Layout persistence \\(save/load panel arrangements\\)\n- Services status panel for real-time monitoring\n- Serilog logging with rolling daily files\n\nDocumentation:\n- Architecture overview with implementation status\n- Feature specifications for all implemented services\n- System Monitor service specification \\(planned next\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd System Monitor service with real-time charts - v0.2.0\n\nImplements high-frequency system monitoring with:\n- 1-second sampling via Windows PerformanceCounters\n- Metrics: System/App CPU, Memory, Disk I/O, Network I/O\n- Ring buffer storing 1 hour of history \\(3600 samples\\)\n- 4 vertically stacked DevExpress charts\n- Time range selector \\(1 min to 1 hour views\\)\n\nNew files:\n- SystemMonitorService - IInformationService implementation\n- MetricsCollector - PerformanceCounter wrapper\n- RingBuffer<T> - Thread-safe circular buffer\n- SystemMetrics - Data model\n- SystemMonitorPanel - UI with charts\n\nUpdated MainForm panel layout \\(Fill panel for System Monitor\\).\nUpdated Architecture.md and feature documentation.\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(# Simpler approach - group by hour and count frames per range echo \"\"Frames per hour by range:\"\" echo \"\"Hour | 64km | 128km | 256km | 512km\"\" echo \"\"===========================================\"\" for range in 64km 128km 256km 512km; do ls \"\"$APPDATA/LifeStream/Data/BOMRadar_Sydney/$range/\"\"*.png | \\\\ sed ''s/.*\\\\.T\\\\.\\\\\\([0-9]\\\\{10\\\\}\\\\\\)[0-9]\\\\{2\\\\}\\\\.png/\\\\1/'' | sort | uniq -c | \\\\ awk -v r=$range ''{print $2, r, $1}'' done)",
+      "Bash(# Different approach - extract all timestamps and process them echo \"\"==============================================\"\" echo \"\"HOURLY COVERAGE MATRIX\"\" echo \"\"Expected: ~10 frames per hour per range\"\" echo \"\"==============================================\"\" echo \"\"\"\" # Extract timestamps for each range into temp files for range in 64km 128km 256km 512km; do ls \"\"$APPDATA/LifeStream/Data/BOMRadar_Sydney/$range/\"\"*.png)",
+      "Bash(# Debug: check actual filenames echo \"\"Sample filenames from 128km:\"\" ls \"\"$APPDATA/LifeStream/Data/BOMRadar_Sydney/128km/\"\"*.png)",
+      "Bash(git commit:*)"
     ]
   }
 }
