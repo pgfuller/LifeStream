@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Net;
 using LifeStream.Core.Infrastructure;
 using Serilog;
@@ -25,9 +26,9 @@ public class RadarLayerManager
     private DateTime _lastLayerRefresh = DateTime.MinValue;
 
     /// <summary>
-    /// Layer types in compositing order (bottom to top).
+    /// Standard layer types in compositing order (bottom to top).
     /// </summary>
-    public static readonly string[] LayerTypes = new[]
+    public static readonly string[] StandardLayerTypes = new[]
     {
         "background",
         "topography",
@@ -35,6 +36,11 @@ public class RadarLayerManager
         "locations",
         "range"
     };
+
+    /// <summary>
+    /// Gets the layer types for this product.
+    /// </summary>
+    public string[] LayerTypes => _product.AvailableLayerTypes ?? StandardLayerTypes;
 
     public RadarLayerManager(RadarProduct product, string basePath)
     {
@@ -44,7 +50,7 @@ public class RadarLayerManager
     }
 
     /// <summary>
-    /// Whether this is a composite/mosaic product that doesn't need layer compositing.
+    /// Whether this is a composite/mosaic product (may use different layer IDs).
     /// </summary>
     public bool IsCompositeProduct => _product.IsComposite;
 
@@ -60,25 +66,19 @@ public class RadarLayerManager
 
     /// <summary>
     /// Downloads all layer files for the configured product.
-    /// Composite products don't need separate layers.
+    /// Uses EffectiveLayerProductId which may differ from the radar ProductId.
     /// </summary>
     public void RefreshLayers()
     {
-        // Composite products (like national radar) come pre-rendered with all layers
-        if (_product.IsComposite)
-        {
-            Log.Debug("Skipping layer refresh for composite product {Product}", _product.ProductId);
-            _lastLayerRefresh = DateTime.Now;
-            return;
-        }
-
-        Log.Information("Refreshing radar layers for {Product}", _product.ProductId);
+        var layerProductId = _product.EffectiveLayerProductId;
+        Log.Information("Refreshing radar layers for {Product} (layer ID: {LayerId})",
+            _product.ProductId, layerProductId);
 
         var success = true;
 
         foreach (var layerType in LayerTypes)
         {
-            var fileName = $"{_product.ProductId}.{layerType}.png";
+            var fileName = $"{layerProductId}.{layerType}.png";
             var localPath = Path.Combine(_layerPath, fileName);
             var remoteUrl = $"ftp://{FtpHost}{TransparenciesPath}/{fileName}";
 
@@ -97,11 +97,11 @@ public class RadarLayerManager
         if (success)
         {
             _lastLayerRefresh = DateTime.Now;
-            Log.Information("Radar layers refreshed successfully");
+            Log.Information("Radar layers refreshed successfully for {Product}", _product.ProductId);
         }
         else
         {
-            Log.Warning("Some radar layers failed to download");
+            Log.Warning("Some radar layers failed to download for {Product}", _product.ProductId);
         }
     }
 
@@ -136,7 +136,7 @@ public class RadarLayerManager
     /// </summary>
     public string? GetLayerPath(string layerType)
     {
-        var fileName = $"{_product.ProductId}.{layerType}.png";
+        var fileName = $"{_product.EffectiveLayerProductId}.{layerType}.png";
         var path = Path.Combine(_layerPath, fileName);
         return File.Exists(path) ? path : null;
     }
@@ -152,14 +152,9 @@ public class RadarLayerManager
 
     /// <summary>
     /// Checks if all required layers are available.
-    /// Composite products don't need separate layers.
     /// </summary>
     public bool HasAllLayers()
     {
-        // Composite products don't need layers
-        if (_product.IsComposite)
-            return true;
-
         foreach (var layerType in LayerTypes)
         {
             if (GetLayerPath(layerType) == null)
@@ -170,7 +165,6 @@ public class RadarLayerManager
 
     /// <summary>
     /// Creates a composite image with background layers and radar frame.
-    /// For composite products, simply returns the radar frame as-is.
     /// </summary>
     /// <param name="radarFramePath">Path to the radar frame image.</param>
     /// <param name="includeLegend">Whether to include the legend.</param>
@@ -185,12 +179,6 @@ public class RadarLayerManager
 
         try
         {
-            // Composite products come pre-rendered - just load and return
-            if (_product.IsComposite)
-            {
-                return new Bitmap(radarFramePath);
-            }
-
             // Load the radar frame to get dimensions
             using var radarImage = Image.FromFile(radarFramePath);
             var width = radarImage.Width;
@@ -202,21 +190,25 @@ public class RadarLayerManager
             using var graphics = Graphics.FromImage(composite);
             graphics.Clear(Color.Transparent);
 
-            // Layer order: background, topography, radar, locations, range
-            // Draw background
-            DrawLayer(graphics, "background", width, height);
+            // Draw layers in order (background first, then others)
+            // Standard order: background, topography, radar, locations, range
+            // But use only the layers available for this product
+            var layerTypes = LayerTypes;
 
-            // Draw topography
-            DrawLayer(graphics, "topography", width, height);
+            // Draw background layers (before radar)
+            if (layerTypes.Contains("background"))
+                DrawLayer(graphics, "background", width, height);
+            if (layerTypes.Contains("topography"))
+                DrawLayer(graphics, "topography", width, height);
 
             // Draw radar frame
             graphics.DrawImage(radarImage, 0, 0, width, height);
 
-            // Draw locations
-            DrawLayer(graphics, "locations", width, height);
-
-            // Draw range circles
-            DrawLayer(graphics, "range", width, height);
+            // Draw overlay layers (after radar)
+            if (layerTypes.Contains("locations"))
+                DrawLayer(graphics, "locations", width, height);
+            if (layerTypes.Contains("range"))
+                DrawLayer(graphics, "range", width, height);
 
             // Optionally add legend in corner
             if (includeLegend)

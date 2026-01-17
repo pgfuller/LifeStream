@@ -1,6 +1,8 @@
+using DevExpress.LookAndFeel;
 using DevExpress.Utils;
 using DevExpress.XtraBars;
 using DevExpress.XtraBars.Docking;
+using DevExpress.XtraBars.Helpers;
 using DevExpress.XtraBars.Ribbon;
 using DevExpress.XtraEditors;
 using LifeStream.Core.Infrastructure;
@@ -92,6 +94,19 @@ public partial class MainForm : RibbonForm
         viewGroup.ItemLinks.Add(refreshBtn);
         refreshBtn.ItemClick += (s, e) => _serviceManager?.RefreshAll();
 
+        // Appearance group with Skin Gallery
+        var appearanceGroup = new RibbonPageGroup("Appearance");
+        homePage.Groups.Add(appearanceGroup);
+
+        // Create skin gallery - must add to Ribbon.Items BEFORE calling InitSkinGallery
+        var skinGalleryItem = new RibbonGalleryBarItem { Caption = "Skins" };
+        _ribbon.Items.Add(skinGalleryItem);
+        appearanceGroup.ItemLinks.Add(skinGalleryItem);
+        SkinHelper.InitSkinGallery(skinGalleryItem, true); // true includes bonus skins
+
+        // Subscribe to skin change events to persist the selection
+        UserLookAndFeel.Default.StyleChanged += OnSkinChanged;
+
         // Add ribbon to form
         Controls.Add(_ribbon);
 
@@ -148,6 +163,9 @@ public partial class MainForm : RibbonForm
 
         _systemMonitorPanel = new SystemMonitorPanel { Dock = DockStyle.Fill };
         systemMonitorDockPanel.ControlContainer.Controls.Add(_systemMonitorPanel);
+
+        // Make Financial panel the active tab (System Monitor was last added so it became active)
+        financialDockPanel.Show();
 
         // Initialize layout manager
         _layoutManager = new LayoutManager(_dockManager);
@@ -226,6 +244,15 @@ public partial class MainForm : RibbonForm
     {
         _layoutManager.SaveLayout(_currentLayoutName);
         _log.Information("Saved current layout: {LayoutName}", _currentLayoutName);
+    }
+
+    private void OnSkinChanged(object? sender, EventArgs e)
+    {
+        // Persist the new skin selection to JSON settings
+        var skinName = UserLookAndFeel.Default.SkinName;
+        _log.Information("Skin changed to: {SkinName}", skinName);
+
+        SettingsService.Update(s => s.SkinName = skinName);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)

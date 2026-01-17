@@ -69,6 +69,8 @@ public class RadarLocation
             new RadarProduct
             {
                 ProductId = "IDR00004",
+                LayerProductId = "IDE00035",  // National layers use different ID
+                AvailableLayerTypes = new[] { "background", "locations" },  // No topography/range for national
                 Name = "Australia",
                 Location = "National Composite",
                 RangeKm = 9999,  // Special value for Australia-wide
@@ -92,6 +94,8 @@ public class RadarLocation
             new RadarProduct
             {
                 ProductId = "IDR00004",
+                LayerProductId = "IDE00035",  // National layers use different ID
+                AvailableLayerTypes = new[] { "background", "locations" },  // No topography/range for national
                 Name = "Australia",
                 Location = "National Composite",
                 RangeKm = 0,  // National - no specific range
@@ -108,9 +112,25 @@ public class RadarLocation
 public class RadarProduct
 {
     /// <summary>
-    /// Product ID (e.g., "IDR713" for Sydney 128km).
+    /// Product ID for radar frames (e.g., "IDR713" for Sydney 128km).
     /// </summary>
     public string ProductId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Product ID for layer files. If null, uses ProductId.
+    /// Australia uses "IDE00035" for layers but "IDR00004" for frames.
+    /// </summary>
+    public string? LayerProductId { get; set; }
+
+    /// <summary>
+    /// Gets the effective layer product ID.
+    /// </summary>
+    public string EffectiveLayerProductId => LayerProductId ?? ProductId;
+
+    /// <summary>
+    /// Layer types available for this product. If null, uses standard layers.
+    /// </summary>
+    public string[]? AvailableLayerTypes { get; set; }
 
     /// <summary>
     /// Human-readable name.
@@ -134,6 +154,7 @@ public class RadarProduct
 
     /// <summary>
     /// Whether this is a composite/mosaic product.
+    /// Composite products still need layers but may use different layer IDs.
     /// </summary>
     public bool IsComposite { get; set; }
 
@@ -185,6 +206,8 @@ public class RadarProduct
     public static RadarProduct NationalComposite => new RadarProduct
     {
         ProductId = "IDR00004",
+        LayerProductId = "IDE00035",  // National layers use different ID
+        AvailableLayerTypes = new[] { "background", "locations" },  // No topography/range for national
         Name = "National Composite",
         Location = "Australia",
         RangeKm = 0,

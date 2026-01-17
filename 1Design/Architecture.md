@@ -4,7 +4,7 @@
 
 LifeStream is a personal life dashboard application that aggregates information from multiple sources (weather, space/science, financial, news) and presents it in a customizable high-tech display with historical data capture and trend visualization.
 
-**Current Version:** 0.3.1
+**Current Version:** 0.3.2
 
 ## Solution Structure
 

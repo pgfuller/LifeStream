@@ -20,7 +20,9 @@
       "Bash(# Simpler approach - group by hour and count frames per range echo \"\"Frames per hour by range:\"\" echo \"\"Hour | 64km | 128km | 256km | 512km\"\" echo \"\"===========================================\"\" for range in 64km 128km 256km 512km; do ls \"\"$APPDATA/LifeStream/Data/BOMRadar_Sydney/$range/\"\"*.png | \\\\ sed ''s/.*\\\\.T\\\\.\\\\\\([0-9]\\\\{10\\\\}\\\\\\)[0-9]\\\\{2\\\\}\\\\.png/\\\\1/'' | sort | uniq -c | \\\\ awk -v r=$range ''{print $2, r, $1}'' done)",
       "Bash(# Different approach - extract all timestamps and process them echo \"\"==============================================\"\" echo \"\"HOURLY COVERAGE MATRIX\"\" echo \"\"Expected: ~10 frames per hour per range\"\" echo \"\"==============================================\"\" echo \"\"\"\" # Extract timestamps for each range into temp files for range in 64km 128km 256km 512km; do ls \"\"$APPDATA/LifeStream/Data/BOMRadar_Sydney/$range/\"\"*.png)",
       "Bash(# Debug: check actual filenames echo \"\"Sample filenames from 128km:\"\" ls \"\"$APPDATA/LifeStream/Data/BOMRadar_Sydney/128km/\"\"*.png)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(done)",
+      "Bash(curl:*)"
     ]
   }
 }

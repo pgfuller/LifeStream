@@ -50,6 +50,10 @@ public static class LoggingConfig
                 outputTemplate: "[{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
 
+        // Session separator for easy identification in log files
+        Log.Information("================================================================================");
+        Log.Information("=== NEW SESSION STARTED ===");
+        Log.Information("================================================================================");
         Log.Information("LifeStream logging initialized. Log path: {LogPath}", AppPaths.LogsPath);
     }
 

@@ -38,6 +38,11 @@ public class FinancialPanel : XtraUserControl
     private LabelControl _allOrdsChangeLabel = null!;
     private LabelControl _marketStatusLabel = null!;
 
+    // KPI Labels - Currency
+    private LabelControl _audUsdLabel = null!;
+    private LabelControl _audUsdValueLabel = null!;
+    private LabelControl _audUsdChangeLabel = null!;
+
     // KPI Labels - Commodities
     private LabelControl _goldLabel = null!;
     private LabelControl _goldValueLabel = null!;
@@ -149,33 +154,37 @@ public class FinancialPanel : XtraUserControl
         var panel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 5,
+            ColumnCount = 6,
             RowCount = 1
         };
 
         // Equal width columns
-        for (int i = 0; i < 5; i++)
-            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20));
+        for (int i = 0; i < 6; i++)
+            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.67f));
 
         // ASX 200
         var asx200Card = CreateKpiCard("ASX 200", out _asx200Label, out _asx200ValueLabel, out _asx200ChangeLabel);
         panel.Controls.Add(asx200Card, 0, 0);
 
-        // All Ordinaries
-        var allOrdsCard = CreateKpiCard("All Ords", out _allOrdsLabel, out _allOrdsValueLabel, out _allOrdsChangeLabel);
-        panel.Controls.Add(allOrdsCard, 1, 0);
+        // AUD/USD
+        var audUsdCard = CreateKpiCard("AUD/USD", out _audUsdLabel, out _audUsdValueLabel, out _audUsdChangeLabel);
+        panel.Controls.Add(audUsdCard, 1, 0);
 
-        // Gold
-        var goldCard = CreateKpiCard("Gold", out _goldLabel, out _goldValueLabel, out _goldChangeLabel);
+        // Gold (AUD/oz)
+        var goldCard = CreateKpiCard("Gold AUD/oz", out _goldLabel, out _goldValueLabel, out _goldChangeLabel);
         panel.Controls.Add(goldCard, 2, 0);
 
-        // Silver
-        var silverCard = CreateKpiCard("Silver", out _silverLabel, out _silverValueLabel, out _silverChangeLabel);
+        // Silver (AUD/kg)
+        var silverCard = CreateKpiCard("Silver AUD/kg", out _silverLabel, out _silverValueLabel, out _silverChangeLabel);
         panel.Controls.Add(silverCard, 3, 0);
+
+        // All Ordinaries
+        var allOrdsCard = CreateKpiCard("All Ords", out _allOrdsLabel, out _allOrdsValueLabel, out _allOrdsChangeLabel);
+        panel.Controls.Add(allOrdsCard, 4, 0);
 
         // Portfolio
         var portfolioCard = CreateKpiCard("Portfolio", out _portfolioLabel, out _portfolioValueLabel, out _portfolioChangeLabel);
-        panel.Controls.Add(portfolioCard, 4, 0);
+        panel.Controls.Add(portfolioCard, 5, 0);
 
         return panel;
     }
@@ -439,12 +448,23 @@ public class FinancialPanel : XtraUserControl
 
     private void DisplayData(FinancialData data)
     {
+        Log.Debug("FinancialPanel.DisplayData called - ASX200: {Asx200}, Gold: {Gold}, Holdings: {Holdings}",
+            data.Asx200?.Price, data.Gold?.Price, data.Holdings?.Count ?? 0);
+
         // Update ASX 200
         if (data.Asx200 != null)
         {
             _asx200ValueLabel.Text = $"{data.Asx200.Price:N2}";
             _asx200ChangeLabel.Text = data.Asx200.ChangeDisplay;
             _asx200ChangeLabel.Appearance.ForeColor = GetChangeColor(data.Asx200.Change);
+        }
+
+        // Update AUD/USD
+        if (data.AudUsd != null)
+        {
+            _audUsdValueLabel.Text = $"{data.AudUsd.Price:N4}";
+            _audUsdChangeLabel.Text = data.AudUsd.ChangeDisplay;
+            _audUsdChangeLabel.Appearance.ForeColor = GetChangeColor(data.AudUsd.Change);
         }
 
         // Update All Ordinaries
@@ -455,7 +475,7 @@ public class FinancialPanel : XtraUserControl
             _allOrdsChangeLabel.Appearance.ForeColor = GetChangeColor(data.AllOrdinaries.Change);
         }
 
-        // Update Gold
+        // Update Gold (AUD per troy ounce)
         if (data.Gold != null)
         {
             _goldValueLabel.Text = $"${data.Gold.Price:N0}";
@@ -463,10 +483,10 @@ public class FinancialPanel : XtraUserControl
             _goldChangeLabel.Appearance.ForeColor = GetChangeColor(data.Gold.Change);
         }
 
-        // Update Silver
+        // Update Silver (AUD per kg)
         if (data.Silver != null)
         {
-            _silverValueLabel.Text = $"${data.Silver.Price:N2}";
+            _silverValueLabel.Text = $"${data.Silver.Price:N0}";
             _silverChangeLabel.Text = data.Silver.ChangeDisplay;
             _silverChangeLabel.Appearance.ForeColor = GetChangeColor(data.Silver.Change);
         }

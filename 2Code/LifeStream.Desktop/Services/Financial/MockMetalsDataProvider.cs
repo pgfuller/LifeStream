@@ -14,13 +14,48 @@ public class MockMetalsDataProvider : IMetalsDataProvider
     private readonly Random _random = new();
 
     // Base prices in AUD per troy ounce (approximately current market rates)
-    private const decimal GoldBasePrice = 3250m;
-    private const decimal SilverBasePrice = 38.50m;
+    private const decimal GoldBasePrice = 4350m;     // ~USD 2,700/oz at 0.62 AUD/USD
+    private const decimal SilverBasePrice = 50.80m;  // ~USD 31.50/oz at 0.62 AUD/USD
     private const decimal GoldVolatility = 0.008m;   // Gold is less volatile
     private const decimal SilverVolatility = 0.015m; // Silver is more volatile
+    private const decimal AudUsdBaseRate = 0.6200m;  // AUD/USD exchange rate
+    private const decimal AudUsdVolatility = 0.005m; // Forex is less volatile day-to-day
 
     public string ProviderName => "Mock Metals Data";
     public bool IsMock => true;
+
+    public async Task<MarketQuote?> GetExchangeRateAsync(string pair, CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(_random.Next(100, 300), cancellationToken);
+
+        return pair.ToUpperInvariant() switch
+        {
+            "AUDUSD" => GenerateForexQuote("AUD/USD", AudUsdBaseRate, AudUsdVolatility),
+            _ => null
+        };
+    }
+
+    private MarketQuote GenerateForexQuote(string name, decimal baseRate, decimal volatility)
+    {
+        var changePercent = (decimal)((_random.NextDouble() - 0.5) * 2 * (double)volatility * 100);
+        var change = baseRate * changePercent / 100;
+        var rate = baseRate + change;
+
+        return new MarketQuote
+        {
+            Symbol = name.Replace("/", ""),
+            Name = name,
+            Price = Math.Round(rate, 4),
+            Change = Math.Round(change, 4),
+            ChangePercent = Math.Round(changePercent, 2),
+            Open = Math.Round(baseRate + (decimal)(_random.NextDouble() - 0.5) * baseRate * volatility, 4),
+            High = Math.Round(Math.Max(rate, baseRate) + (decimal)_random.NextDouble() * baseRate * volatility * 0.5m, 4),
+            Low = Math.Round(Math.Min(rate, baseRate) - (decimal)_random.NextDouble() * baseRate * volatility * 0.5m, 4),
+            PreviousClose = Math.Round(baseRate, 4),
+            Volume = 0,
+            LastUpdated = DateTime.Now
+        };
+    }
 
     public async Task<MarketQuote?> GetMetalPriceAsync(string metal, CancellationToken cancellationToken = default)
     {

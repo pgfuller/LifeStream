@@ -32,8 +32,10 @@ static class Program
             SkinManager.EnableFormSkins();
             SkinManager.EnableMdiFormSkins();
 
-            // Set the dark theme
-            UserLookAndFeel.Default.SetSkinStyle(SkinStyle.Office2019Black);
+            // Load saved skin preference from JSON settings
+            var settings = SettingsService.Current;
+            Log.Information("Applying skin: {SkinName}", settings.SkinName);
+            UserLookAndFeel.Default.SetSkinStyle(settings.SkinName);
 
             ApplicationConfiguration.Initialize();
             Application.Run(new MainForm());

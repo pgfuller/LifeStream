@@ -127,8 +127,9 @@ public class FinancialService : InformationServiceBase
             var indexTask = FetchIndicesAsync(cancellationToken);
             var metalsTask = FetchMetalsAsync(cancellationToken);
             var stocksTask = FetchStockQuotesAsync(cancellationToken);
+            var forexTask = FetchExchangeRatesAsync(cancellationToken);
 
-            await Task.WhenAll(indexTask, metalsTask, stocksTask);
+            await Task.WhenAll(indexTask, metalsTask, stocksTask, forexTask);
 
             // Process indices
             var indices = await indexTask;
@@ -137,12 +138,35 @@ public class FinancialService : InformationServiceBase
             if (indices.TryGetValue("^AORD", out var allOrds))
                 data.AllOrdinaries = allOrds;
 
-            // Process metals
+            // Process exchange rates
+            var forexRates = await forexTask;
+            if (forexRates.TryGetValue("AUDUSD", out var audUsd))
+                data.AudUsd = audUsd;
+
+            // Process metals (already in AUD)
             var metals = await metalsTask;
             if (metals.TryGetValue("XAU", out var gold))
                 data.Gold = gold;
             if (metals.TryGetValue("XAG", out var silver))
-                data.Silver = silver;
+            {
+                // Convert silver from AUD/oz to AUD/kg for display
+                // 1 kg = 32.1507 troy ounces
+                const decimal OzPerKg = 32.1507m;
+                data.Silver = new MarketQuote
+                {
+                    Symbol = silver.Symbol,
+                    Name = silver.Name,
+                    Price = Math.Round(silver.Price * OzPerKg, 0),
+                    Change = Math.Round(silver.Change * OzPerKg, 0),
+                    ChangePercent = silver.ChangePercent, // Percentage stays the same
+                    Open = Math.Round(silver.Open * OzPerKg, 0),
+                    High = Math.Round(silver.High * OzPerKg, 0),
+                    Low = Math.Round(silver.Low * OzPerKg, 0),
+                    PreviousClose = Math.Round(silver.PreviousClose * OzPerKg, 0),
+                    Volume = silver.Volume,
+                    LastUpdated = silver.LastUpdated
+                };
+            }
 
             // Update holdings with stock quotes
             var stockQuotes = await stocksTask;
@@ -161,8 +185,8 @@ public class FinancialService : InformationServiceBase
             // Calculate portfolio summary
             data.Portfolio = _holdingsManager.CalculatePortfolioSummary();
 
-            Log.Information("Financial data fetched successfully. ASX200: {Price}, Gold: {Gold}",
-                data.Asx200?.Price, data.Gold?.Price);
+            Log.Information("Financial data fetched successfully. ASX200: {Asx200}, AUD/USD: {AudUsd}, Gold: {Gold} AUD/oz, Silver: {Silver} AUD/kg",
+                data.Asx200?.Price, data.AudUsd?.Price, data.Gold?.Price, data.Silver?.Price);
 
             return data;
         }
@@ -218,6 +242,26 @@ public class FinancialService : InformationServiceBase
             {
                 Log.Warning(ex, "Failed to fetch {Metal} price", metal);
             }
+        }
+
+        return results;
+    }
+
+    private async Task<Dictionary<string, MarketQuote>> FetchExchangeRatesAsync(CancellationToken cancellationToken)
+    {
+        var results = new Dictionary<string, MarketQuote>();
+
+        try
+        {
+            var quote = await _metalsProvider.GetExchangeRateAsync("AUDUSD", cancellationToken);
+            if (quote != null)
+            {
+                results["AUDUSD"] = quote;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to fetch AUD/USD exchange rate");
         }
 
         return results;

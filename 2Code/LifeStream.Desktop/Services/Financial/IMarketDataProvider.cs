@@ -56,7 +56,7 @@ public interface IMarketDataProvider
 }
 
 /// <summary>
-/// Interface for precious metals data providers (gold, silver).
+/// Interface for precious metals data providers (gold, silver) and currency rates.
 /// </summary>
 public interface IMetalsDataProvider
 {
@@ -67,6 +67,14 @@ public interface IMetalsDataProvider
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The quote with price in AUD per troy ounce.</returns>
     Task<MarketQuote?> GetMetalPriceAsync(string metal, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the current exchange rate for a currency pair.
+    /// </summary>
+    /// <param name="pair">Currency pair (e.g., "AUDUSD").</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The quote with exchange rate.</returns>
+    Task<MarketQuote?> GetExchangeRateAsync(string pair, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets historical prices for a metal.

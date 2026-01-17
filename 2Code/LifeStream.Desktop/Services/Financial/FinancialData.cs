@@ -234,10 +234,13 @@ public class FinancialData
     /// <summary>All Ordinaries index quote.</summary>
     public MarketQuote? AllOrdinaries { get; set; }
 
-    /// <summary>Gold spot price quote.</summary>
+    /// <summary>AUD/USD exchange rate quote.</summary>
+    public MarketQuote? AudUsd { get; set; }
+
+    /// <summary>Gold spot price quote (AUD per troy ounce).</summary>
     public MarketQuote? Gold { get; set; }
 
-    /// <summary>Silver spot price quote.</summary>
+    /// <summary>Silver spot price quote (AUD per kilogram).</summary>
     public MarketQuote? Silver { get; set; }
 
     /// <summary>User's holdings (stocks + commodities).</summary>
