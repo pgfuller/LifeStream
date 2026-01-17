@@ -44,6 +44,11 @@ public class RadarLayerManager
     }
 
     /// <summary>
+    /// Whether this is a composite/mosaic product that doesn't need layer compositing.
+    /// </summary>
+    public bool IsCompositeProduct => _product.IsComposite;
+
+    /// <summary>
     /// Gets the path to the layers folder.
     /// </summary>
     public string LayerPath => _layerPath;
@@ -55,9 +60,18 @@ public class RadarLayerManager
 
     /// <summary>
     /// Downloads all layer files for the configured product.
+    /// Composite products don't need separate layers.
     /// </summary>
     public void RefreshLayers()
     {
+        // Composite products (like national radar) come pre-rendered with all layers
+        if (_product.IsComposite)
+        {
+            Log.Debug("Skipping layer refresh for composite product {Product}", _product.ProductId);
+            _lastLayerRefresh = DateTime.Now;
+            return;
+        }
+
         Log.Information("Refreshing radar layers for {Product}", _product.ProductId);
 
         var success = true;
@@ -138,9 +152,14 @@ public class RadarLayerManager
 
     /// <summary>
     /// Checks if all required layers are available.
+    /// Composite products don't need separate layers.
     /// </summary>
     public bool HasAllLayers()
     {
+        // Composite products don't need layers
+        if (_product.IsComposite)
+            return true;
+
         foreach (var layerType in LayerTypes)
         {
             if (GetLayerPath(layerType) == null)
@@ -151,6 +170,7 @@ public class RadarLayerManager
 
     /// <summary>
     /// Creates a composite image with background layers and radar frame.
+    /// For composite products, simply returns the radar frame as-is.
     /// </summary>
     /// <param name="radarFramePath">Path to the radar frame image.</param>
     /// <param name="includeLegend">Whether to include the legend.</param>
@@ -165,6 +185,12 @@ public class RadarLayerManager
 
         try
         {
+            // Composite products come pre-rendered - just load and return
+            if (_product.IsComposite)
+            {
+                return new Bitmap(radarFramePath);
+            }
+
             // Load the radar frame to get dimensions
             using var radarImage = Image.FromFile(radarFramePath);
             var width = radarImage.Width;

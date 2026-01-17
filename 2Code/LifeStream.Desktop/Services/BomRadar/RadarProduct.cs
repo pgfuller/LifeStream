@@ -52,7 +52,7 @@ public class RadarLocation
         Products.Select(p => p.RangeKm).OrderBy(r => r).ToList();
 
     /// <summary>
-    /// Sydney (Terrey Hills) radar location.
+    /// Sydney (Terrey Hills) radar location with Australia-wide option.
     /// </summary>
     public static RadarLocation Sydney => new RadarLocation
     {
@@ -65,7 +65,39 @@ public class RadarLocation
             new RadarProduct { ProductId = "IDR714", Name = "Sydney 64km", Location = "Terrey Hills", RangeKm = 64 },
             new RadarProduct { ProductId = "IDR713", Name = "Sydney 128km", Location = "Terrey Hills", RangeKm = 128 },
             new RadarProduct { ProductId = "IDR712", Name = "Sydney 256km", Location = "Terrey Hills", RangeKm = 256 },
-            new RadarProduct { ProductId = "IDR711", Name = "Sydney 512km", Location = "Terrey Hills", RangeKm = 512 }
+            new RadarProduct { ProductId = "IDR711", Name = "Sydney 512km", Location = "Terrey Hills", RangeKm = 512 },
+            new RadarProduct
+            {
+                ProductId = "IDR00004",
+                Name = "Australia",
+                Location = "National Composite",
+                RangeKm = 9999,  // Special value for Australia-wide
+                UpdateInterval = TimeSpan.FromMinutes(10),
+                IsComposite = true
+            }
+        }
+    };
+
+    /// <summary>
+    /// Australia-wide national composite radar.
+    /// </summary>
+    public static RadarLocation Australia => new RadarLocation
+    {
+        Id = "australia",
+        Name = "Australia",
+        Description = "National Composite",
+        ProductIdPrefix = "IDR00",
+        Products = new List<RadarProduct>
+        {
+            new RadarProduct
+            {
+                ProductId = "IDR00004",
+                Name = "Australia",
+                Location = "National Composite",
+                RangeKm = 0,  // National - no specific range
+                UpdateInterval = TimeSpan.FromMinutes(10),
+                IsComposite = true
+            }
         }
     };
 }

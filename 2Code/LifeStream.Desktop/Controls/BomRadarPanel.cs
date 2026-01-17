@@ -209,7 +209,9 @@ public class BomRadarPanel : XtraUserControl
 
             foreach (var range in _service.AvailableRanges)
             {
-                _rangeSelector.Properties.Items.Add($"{range}km");
+                // Special display for Australia-wide composite (RangeKm = 9999)
+                var displayText = range >= 9999 ? "Australia" : $"{range}km";
+                _rangeSelector.Properties.Items.Add(displayText);
             }
 
             // Select current range
@@ -233,7 +235,8 @@ public class BomRadarPanel : XtraUserControl
         if (selectedIndex >= 0 && selectedIndex < _service.AvailableRanges.Count)
         {
             var newRange = _service.AvailableRanges[selectedIndex];
-            Log.Debug("User selected range: {Range}km", newRange);
+            var rangeDisplay = newRange >= 9999 ? "Australia" : $"{newRange}km";
+            Log.Debug("User selected range: {Range}", rangeDisplay);
 
             // Stop playback when changing range
             if (_isPlaying)
@@ -265,7 +268,8 @@ public class BomRadarPanel : XtraUserControl
         // Update title
         if (_service?.Product != null)
         {
-            _titleLabel.Text = $"{_service.Location.Name} {newRange}km";
+            var rangeDisplay = newRange >= 9999 ? "Australia" : $"{_service.Location.Name} {newRange}km";
+            _titleLabel.Text = rangeDisplay;
         }
 
         UpdatePlaybackControls();

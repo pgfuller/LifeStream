@@ -231,7 +231,11 @@ public class ServicesPanel : XtraUserControl
 
     private void OnServiceDataReceived(object? sender, ServiceDataEventArgs e)
     {
-        Log.Debug("ServicesPanel: Data received from {Service}", e.Service.Name);
+        // Skip logging for high-frequency services (SystemMonitor updates every second)
+        if (e.Service.SourceType != "SystemMonitor")
+        {
+            Log.Debug("ServicesPanel: Data received from {Service}", e.Service.Name);
+        }
         UpdateServiceRow(e.Service);
     }
 

@@ -30,6 +30,14 @@ public class SystemMonitorService : IInformationService
     private DateTime? _lastRefresh;
     private DateTime? _nextRefresh;
 
+    // Logging accumulation (log summary every minute instead of every second)
+    private const int LogIntervalSamples = 60;  // Log every 60 samples (1 minute)
+    private int _samplesSinceLastLog;
+    private float _maxCpuSinceLastLog;
+    private float _maxMemorySinceLastLog;
+    private float _totalCpuSinceLastLog;
+    private float _totalMemorySinceLastLog;
+
     /// <summary>
     /// Creates a new System Monitor service.
     /// </summary>
@@ -235,11 +243,15 @@ public class SystemMonitorService : IInformationService
                 Status = ServiceStatus.Running;
             }
 
+            // Accumulate stats for periodic logging
+            AccumulateForLogging(metrics);
+
             // Notify listeners on UI thread
             RaiseDataReceived(metrics, isNewData: true);
         }
         catch (Exception ex)
         {
+            // Always log errors immediately
             _consecutiveFailures++;
             _lastError = ex.Message;
             Log.Warning(ex, "Error collecting system metrics (failure {Count})", _consecutiveFailures);
@@ -254,6 +266,38 @@ public class SystemMonitorService : IInformationService
                 Status = ServiceStatus.Degraded;
                 RaiseError("Collection error", ex, willRetry: true);
             }
+        }
+    }
+
+    private void AccumulateForLogging(SystemMetrics metrics)
+    {
+        _samplesSinceLastLog++;
+        _totalCpuSinceLastLog += metrics.SystemCpuPercent;
+        _totalMemorySinceLastLog += metrics.MemoryUsedPercent;
+
+        if (metrics.SystemCpuPercent > _maxCpuSinceLastLog)
+            _maxCpuSinceLastLog = metrics.SystemCpuPercent;
+        if (metrics.MemoryUsedPercent > _maxMemorySinceLastLog)
+            _maxMemorySinceLastLog = metrics.MemoryUsedPercent;
+
+        // Log summary every minute
+        if (_samplesSinceLastLog >= LogIntervalSamples)
+        {
+            var avgCpu = _totalCpuSinceLastLog / _samplesSinceLastLog;
+            var avgMemory = _totalMemorySinceLastLog / _samplesSinceLastLog;
+
+            Log.Debug("SystemMonitor: {Samples} samples | CPU avg:{AvgCpu:F1}% max:{MaxCpu:F1}% | " +
+                      "Mem avg:{AvgMem:F1}% max:{MaxMem:F1}% | Buffer:{BufferCount}/{BufferSize}",
+                _samplesSinceLastLog, avgCpu, _maxCpuSinceLastLog,
+                avgMemory, _maxMemorySinceLastLog,
+                _history.Count, _bufferSize);
+
+            // Reset accumulators
+            _samplesSinceLastLog = 0;
+            _maxCpuSinceLastLog = 0;
+            _maxMemorySinceLastLog = 0;
+            _totalCpuSinceLastLog = 0;
+            _totalMemorySinceLastLog = 0;
         }
     }
 

@@ -64,15 +64,16 @@ public class BomRadarService : InformationServiceBase
             _layerManagersByRange[product.RangeKm] = new RadarLayerManager(product, rangePath);
         }
 
-        // Configure adaptive refresh strategy
+        // Configure refresh strategy with shorter intervals to ensure we don't miss frames
+        // Radar updates every ~6 minutes, so poll every 3 minutes (2x per cycle)
         _refreshStrategy = new AdaptiveRefreshStrategy(
-            baseInterval: TimeSpan.FromMinutes(6),
-            initialSlack: TimeSpan.FromSeconds(30),
-            minimumInterval: TimeSpan.FromSeconds(30),
-            maximumInterval: TimeSpan.FromMinutes(15),
-            retryInterval: TimeSpan.FromSeconds(20),
-            maxRetries: 3,
-            maxObservations: 20
+            baseInterval: TimeSpan.FromMinutes(3),      // Poll every 3 min (half of 6-min radar cycle)
+            initialSlack: TimeSpan.FromSeconds(10),
+            minimumInterval: TimeSpan.FromMinutes(2),   // At least 2 min between polls
+            maximumInterval: TimeSpan.FromMinutes(5),   // Never wait more than 5 min
+            retryInterval: TimeSpan.FromSeconds(30),
+            maxRetries: 2,
+            maxObservations: 10
         );
     }
 
@@ -313,17 +314,20 @@ public class BomRadarService : InformationServiceBase
             return;
 
         _isPolling = true;
+        DateTime? latestFrameTimestamp = null;
 
         try
         {
             // Poll for all ranges to keep them all updated
-            var anyNewFrames = false;
+            var totalNewFrames = 0;
             foreach (var product in _location.Products)
             {
-                var newFrame = await PollForNewFrameAsync(product);
-                if (newFrame != null)
+                // Get ALL new frames, not just the latest
+                var newFrames = await GetNewRemoteFramesAsync(product);
+
+                foreach (var newFrame in newFrames)
                 {
-                    anyNewFrames = true;
+                    totalNewFrames++;
 
                     // Download and cache the frame
                     await DownloadFrameAsync(newFrame, product.RangeKm);
@@ -332,10 +336,16 @@ public class BomRadarService : InformationServiceBase
                     // Store in database
                     StoreFrameRecord(newFrame, product);
 
+                    // Track the latest timestamp for adaptive strategy
+                    if (!latestFrameTimestamp.HasValue || newFrame.Timestamp > latestFrameTimestamp.Value)
+                    {
+                        latestFrameTimestamp = newFrame.Timestamp;
+                    }
+
                     Log.Information("BOM Radar {Location} {Range}km: New frame {Time}",
                         _location.Name, product.RangeKm, newFrame.DisplayTime);
 
-                    // Notify UI only if this is the current range
+                    // Notify UI only if this is the current range (use the latest frame)
                     if (product.RangeKm == _currentRange)
                     {
                         RaiseDataReceived(newFrame, true);
@@ -343,9 +353,12 @@ public class BomRadarService : InformationServiceBase
                 }
             }
 
-            if (anyNewFrames)
+            if (totalNewFrames > 0)
             {
-                _refreshStrategy.RecordSuccess(DateTime.UtcNow);
+                // Use the actual frame timestamp for adaptive strategy
+                _refreshStrategy.RecordSuccess(latestFrameTimestamp!.Value);
+                Log.Debug("BOM Radar {Location}: Downloaded {Count} new frames across all ranges",
+                    _location.Name, totalNewFrames);
             }
             else
             {
@@ -374,32 +387,46 @@ public class BomRadarService : InformationServiceBase
         }
     }
 
-    private async Task<RadarFrame?> PollForNewFrameAsync(RadarProduct product)
+    /// <summary>
+    /// Gets all remote frames newer than our local latest for a product.
+    /// </summary>
+    private async Task<List<RadarFrame>> GetNewRemoteFramesAsync(RadarProduct product)
     {
-        var latestRemote = await GetLatestRemoteFrameAsync(product);
-
-        if (latestRemote == null)
-            return null;
-
         var currentLatest = _framesByRange[product.RangeKm].LatestFrame;
+        var allRemoteFrames = await GetAllRemoteFramesAsync(product);
 
-        // Check if this is newer than what we have
-        if (currentLatest == null || latestRemote.Timestamp > currentLatest.Timestamp)
+        if (allRemoteFrames.Count == 0)
+            return new List<RadarFrame>();
+
+        // Return all frames newer than what we have locally
+        if (currentLatest == null)
         {
-            return latestRemote;
+            // No local frames - just get the latest one to start
+            var latest = allRemoteFrames.OrderByDescending(f => f.Timestamp).First();
+            return new List<RadarFrame> { latest };
         }
 
-        return null;
+        // Return all frames newer than our latest, sorted oldest first for proper ordering
+        return allRemoteFrames
+            .Where(f => f.Timestamp > currentLatest.Timestamp)
+            .OrderBy(f => f.Timestamp)
+            .ToList();
     }
 
     #endregion
 
     #region FTP Operations
 
-    private async Task<RadarFrame?> GetLatestRemoteFrameAsync(RadarProduct product)
+    /// <summary>
+    /// Gets all available frames from the FTP server for a product.
+    /// BOM typically keeps the last ~2 hours of frames available.
+    /// </summary>
+    private async Task<List<RadarFrame>> GetAllRemoteFramesAsync(RadarProduct product)
     {
         return await Task.Run(() =>
         {
+            var frames = new List<RadarFrame>();
+
             try
             {
                 var ftpRequest = (FtpWebRequest)WebRequest.Create($"ftp://{FtpHost}{RadarPath}/");
@@ -412,35 +439,28 @@ public class BomRadarService : InformationServiceBase
                 using var stream = response.GetResponseStream();
                 using var reader = new StreamReader(stream);
 
-                var files = new List<string>();
                 string? line;
                 while ((line = reader.ReadLine()) != null)
                 {
                     // Filter for this product ID with timestamp
                     if (line.StartsWith(product.ProductId) && line.Contains(".T."))
                     {
-                        files.Add(line);
+                        var frame = ParseFrameFromFilename(line, product.ProductId);
+                        if (frame != null)
+                        {
+                            frames.Add(frame);
+                        }
                     }
                 }
 
-                // Find the latest file by timestamp in filename
-                RadarFrame? latest = null;
-                foreach (var file in files)
-                {
-                    var frame = ParseFrameFromFilename(file, product.ProductId);
-                    if (frame != null && (latest == null || frame.Timestamp > latest.Timestamp))
-                    {
-                        latest = frame;
-                    }
-                }
-
-                return latest;
+                Log.Debug("BOM Radar FTP: Found {Count} frames for {Product}", frames.Count, product.ProductId);
             }
             catch (WebException ex)
             {
                 Log.Warning(ex, "BOM Radar FTP error listing directory for {Product}", product.ProductId);
-                return null;
             }
+
+            return frames;
         });
     }
 
