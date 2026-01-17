@@ -14,6 +14,7 @@ using LifeStream.Desktop.Services.BomForecast;
 using LifeStream.Desktop.Services.BomRadar;
 using LifeStream.Desktop.Services.SystemMonitor;
 using LifeStream.Desktop.Services.Financial;
+using LifeStream.Desktop.Services.Media;
 using LifeStream.Desktop.Services.News;
 using Serilog;
 
@@ -37,6 +38,7 @@ public partial class MainForm : RibbonForm
     private SystemMonitorPanel _systemMonitorPanel = null!;
     private FinancialPanel _financialPanel = null!;
     private NewsPanel _newsPanel = null!;
+    private MediaPanel _mediaPanel = null!;
     private ServicesPanel _servicesPanel = null!;
     private string _currentLayoutName = LayoutManager.DefaultLayoutName;
 
@@ -174,6 +176,14 @@ public partial class MainForm : RibbonForm
         _newsPanel = new NewsPanel { Dock = DockStyle.Fill };
         newsDockPanel.ControlContainer.Controls.Add(_newsPanel);
 
+        // Create Media (YouTube) panel as a tab with Financial panel
+        var mediaDockPanel = _dockManager.AddPanel(DockingStyle.Fill);
+        mediaDockPanel.Text = "YouTube";
+        mediaDockPanel.DockAsTab(financialDockPanel);
+
+        _mediaPanel = new MediaPanel { Dock = DockStyle.Fill };
+        mediaDockPanel.ControlContainer.Controls.Add(_mediaPanel);
+
         // Make Financial panel the active tab
         financialDockPanel.Show();
 
@@ -229,6 +239,10 @@ public partial class MainForm : RibbonForm
         var newsService = new NewsService();
         _serviceManager.RegisterService(newsService);
 
+        // Register YouTube service
+        var youtubeService = new YouTubeService();
+        _serviceManager.RegisterService(youtubeService);
+
         // Bind panels to services (before start so events are subscribed)
         _apodPanel.BindToService(apodService);
         _radarPanel.BindToService(radarService);
@@ -236,6 +250,7 @@ public partial class MainForm : RibbonForm
         _systemMonitorPanel.BindToService(systemMonitorService);
         _financialPanel.BindToService(financialService);
         _newsPanel.BindToService(newsService);
+        _mediaPanel.BindToService(youtubeService);
 
         // Start all services
         _serviceManager.StartAll();
