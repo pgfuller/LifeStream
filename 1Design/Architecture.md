@@ -42,13 +42,15 @@ LifeStream.sln
 | BOM Forecast Service | Done | 7-day forecast, FTP data extraction |
 | Services Panel | Done | Real-time service status display |
 | System Monitor | Done | 1-sec sampling, CPU/Memory/Disk/Network, 4 charts, 1-hour buffer |
-| Financial Service | Done | ASX indices, gold/silver, portfolio holdings, mock data providers |
+| Financial Service | Partial | Mock data providers only - needs real API integration |
 | Debug/Release Paths | Done | Separate data folders for development vs production |
 
 ### Planned (Future)
 
 | Component | Priority | Notes |
 |-----------|----------|-------|
+| Financial API Integration | High | Real market data (Alpha Vantage/Yahoo) with rate limiting |
+| Financial Display Fix | High | Verify KPI cards and charts display correctly |
 | News/RSS Service | Medium | Feed aggregation |
 | Tasks Panel | Medium | Local task management |
 | YouTube Service | Low | Channel feed monitoring |
